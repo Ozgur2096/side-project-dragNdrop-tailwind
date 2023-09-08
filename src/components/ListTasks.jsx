@@ -1,3 +1,5 @@
+import toast from 'react-hot-toast';
+import { useDrag, useDrop } from 'react-dnd';
 import { useEffect, useState } from 'react';
 
 const ListTasks = ({ tasks, setTasks }) => {
@@ -37,6 +39,17 @@ const ListTasks = ({ tasks, setTasks }) => {
 export default ListTasks;
 
 const Section = ({ state, tasks, setTasks, todos, inProgress, closed }) => {
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: 'task',
+    drop: item => {
+      console.log(item);
+      addItemToSection(item.id);
+    },
+    collect: monitor => ({
+      isOver: !!monitor.isOver(),
+    }),
+  }));
+
   let text = 'to  do';
   let bg = 'bg-slate-500';
   let tasksToMap = todos;
@@ -53,8 +66,25 @@ const Section = ({ state, tasks, setTasks, todos, inProgress, closed }) => {
     tasksToMap = closed;
   }
 
+  const addItemToSection = id => {
+    console.log(id, state);
+    setTasks(prev => {
+      const mTasks = prev.map(t => {
+        if (t.id === id) {
+          return { ...t, status: state };
+        }
+        return t;
+      });
+      console.log(mTasks);
+
+      localStorage.setItem('tasks', JSON.stringify(mTasks));
+
+      return mTasks;
+    });
+  };
+
   return (
-    <div className='w-64'>
+    <div ref={drop} className='w-64'>
       <Header text={text} bg={bg} count={tasksToMap.length} />
       {tasksToMap.length > 0 &&
         tasksToMap.map(task => (
@@ -77,10 +107,33 @@ const Header = ({ text, bg, count }) => {
 };
 
 const Task = ({ task, tasks, setTasks }) => {
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: 'task',
+    item: { id: task.id },
+    collect: monitor => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+  }));
+
+  const handleRemove = id => {
+    const fTasks = tasks.filter(t => t.id !== id);
+    localStorage.setItem('tasks', JSON.stringify(fTasks));
+    setTasks(fTasks);
+    toast('Task removed');
+  };
+
   return (
-    <div className='relative p-4 mt-8 shadow-md rounded-md cursor-grab'>
+    <div
+      ref={drag}
+      className='relative p-4 mt-8 shadow-md rounded-md cursor-grab'
+    >
       <p>{task.name}</p>
-      <button className='absolute bottom-1 right-1 text-slate-400'>
+      <button
+        className='absolute bottom-1 right-1 text-slate-400'
+        onClick={() => {
+          handleRemove(task.id);
+        }}
+      >
         <svg
           xmlns='http://www.w3.org/2000/svg'
           fill='none'
